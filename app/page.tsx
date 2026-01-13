@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import AuthGuard from "@/src/components/AuthGuard";
-import { authFetch } from "@/src/lib/api-client";
+import { authFetch, saveFavourite } from "@/src/lib/api-client";
 import { PagedResult, WantedPersonSummary } from "@/src/types/wanted-person";
 import Link from "next/link";
 import { Navbar } from "@/src/components/Navbar";
@@ -58,21 +58,29 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pageNumber, pageSize, debouncedSearch]);
 
-  // --- LOGICA FAVORITE ---
-  const toggleFavorite = (e: React.MouseEvent, id: number) => {
-    // CRITIC: Oprește navigarea Link-ului parinte
+
+  const toggleFavorite = async (e: React.MouseEvent, id: number) => {
     e.preventDefault(); 
     e.stopPropagation();
 
-    setFavorites((prev) => {
-      if (prev.includes(id)) {
-        // Dacă e deja, îl scoatem (Filter out)
-        return prev.filter((favId) => favId !== id);
-      } else {
-        // Dacă nu e, îl adăugăm
-        return [...prev, id];
-      }
-    });
+    const isCurrentlyFav = favorites.includes(id);
+
+    if (isCurrentlyFav) {
+        setFavorites((prev) => prev.filter((favId) => favId !== id));
+    } else {
+        setFavorites((prev) => [...prev, id]);
+    }
+
+    try {
+        await saveFavourite(id, !isCurrentlyFav);
+    } catch (error) {
+        console.error("Eroare la salvarea favoritului:", error);
+        if (isCurrentlyFav) {
+             setFavorites((prev) => [...prev, id]);
+        } else {
+             setFavorites((prev) => prev.filter((favId) => favId !== id));
+        }
+    }
   };
 
   // --- HANDLERS PAGINARE ---

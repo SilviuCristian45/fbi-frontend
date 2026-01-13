@@ -53,6 +53,6 @@ export async function getWantedPersonById(id: string | number): Promise<ApiRespo
   return authFetch<WantedPersonDetail>(`/FbiWanted/${id}`);
 }
 
-export async function saveFavourite(personId: number) {
-  return authFetch<SavePerson>(`/FbiWanted/${personId}`, {method: 'POST'});
+export async function saveFavourite(personId: number, save: boolean) {
+  return authFetch<SavePerson>(`/FbiWanted/${personId}/${save}`, {method: 'POST'});
 }
