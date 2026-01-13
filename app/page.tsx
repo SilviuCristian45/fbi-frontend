@@ -5,12 +5,18 @@ import AuthGuard from "@/src/components/AuthGuard";
 import { authFetch } from "@/src/lib/api-client";
 import { PagedResult, WantedPersonSummary } from "@/src/types/wanted-person";
 import Link from "next/link";
+import { Navbar } from "@/src/components/Navbar";
 
+// --- PAGINA PRINCIPALA ---
 export default function Home() {
   const [data, setData] = useState<PagedResult<WantedPersonSummary> | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // --- STATE-URI ---
+  // --- STATE PENTRU FAVORITE ---
+  // Stocăm ID-urile persoanelor favorite
+  const [favorites, setFavorites] = useState<number[]>([]);
+
+  // --- STATE-URI PAGINARE & SEARCH ---
   const [pageNumber, setPageNumber] = useState(1);
   const [pageSize, setPageSize] = useState(12);
   const [searchTerm, setSearchTerm] = useState("");
@@ -35,12 +41,11 @@ export default function Home() {
         ...(debouncedSearch && { Search: debouncedSearch }),
       });
 
-      // API call
       const result = await authFetch<PagedResult<WantedPersonSummary>>(
-        `FbiWanted?${params.toString()}`
+        `/FbiWanted?${params.toString()}` // Am pus slash in fata ca sa fie safe
       );
       
-      setData(result.data); // result.data este obiectul { totalCount, items }
+      setData(result.data);
     } catch (error) {
       console.error("Eroare:", error);
     } finally {
@@ -53,13 +58,29 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pageNumber, pageSize, debouncedSearch]);
 
-  // --- HANDLERS ---
+  // --- LOGICA FAVORITE ---
+  const toggleFavorite = (e: React.MouseEvent, id: number) => {
+    // CRITIC: Oprește navigarea Link-ului parinte
+    e.preventDefault(); 
+    e.stopPropagation();
+
+    setFavorites((prev) => {
+      if (prev.includes(id)) {
+        // Dacă e deja, îl scoatem (Filter out)
+        return prev.filter((favId) => favId !== id);
+      } else {
+        // Dacă nu e, îl adăugăm
+        return [...prev, id];
+      }
+    });
+  };
+
+  // --- HANDLERS PAGINARE ---
   const handlePrevPage = () => {
     if (pageNumber > 1) setPageNumber(prev => prev - 1);
   };
 
   const handleNextPage = () => {
-    // Folosim variabila calculată 'totalPages'
     if (pageNumber < totalPages) setPageNumber(prev => prev + 1);
   };
 
@@ -71,33 +92,20 @@ export default function Home() {
 
   return (
     <AuthGuard>
-      <main className="min-h-screen bg-gray-100 p-8">
+      <main className="min-h-screen bg-gray-50 p-4 md:p-8">
         <div className="max-w-7xl mx-auto">
-          {/* HEADER */}
-          <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
-            <h1 className="text-4xl font-bold text-gray-900">
-              FBI Most Wanted 🕵️‍♂️
-            </h1>
-            <button 
-                onClick={() => {
-                    localStorage.removeItem("token");
-                    localStorage.removeItem("refresh_token");
-                    window.location.href = "/login";
-                }}
-                className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 text-sm font-medium"
-            >
-                Logout
-            </button>
-          </div>
+          
+          {/* NAVBAR AICI */}
+          <Navbar />
 
           {/* SEARCH BAR */}
-          <div className="mb-8 bg-white p-4 rounded-xl shadow-sm">
+          <div className="mb-8 bg-white p-4 rounded-xl shadow-sm border border-gray-100">
             <input 
               type="text" 
               placeholder="Caută după nume sau descriere..." 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none"
+              className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
             />
           </div>
 
@@ -108,45 +116,69 @@ export default function Home() {
              </div>
           ) : (
             <>
-                {/* Rezultate: Folosim data.items acum */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                  {data?.items.map((person) => (
-                    <Link 
-                    href={`/wanted/${person.id}`} // <--- AICI ESTE LEGĂTURA
-                    key={person.id} 
-                    className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl hover:scale-[1.02] transition-all duration-300 flex flex-col cursor-pointer"
-                  >
-                    <div key={person.id} className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-shadow duration-300 flex flex-col">
-                      <div className="h-64 w-full relative bg-gray-200">
-                        <img 
-                          src={person.mainImageUrl || '/placeholder.png'} 
-                          alt={person.title}
-                          className="w-full h-full object-cover object-top"
-                          onError={(e) => { (e.target as HTMLImageElement).src = 'https://placehold.co/400x600?text=No+Image'; }}
-                        />
-                      </div>
-                      <div className="p-4 flex-grow">
-                        <h2 className="font-bold text-lg text-gray-800 line-clamp-1" title={person.title}>{person.title}</h2>
-                        {person.rewardText && (
-                          <p className="text-sm text-green-600 font-semibold mt-1 truncate">💰 {person.rewardText}</p>
-                        )}
-                      </div>
-                    </div>
-                    </Link>
-                  ))}
+                  {data?.items.map((person) => {
+                    // Verificăm dacă e favorit
+                    const isFav = favorites.includes(person.id);
+
+                    return (
+                      <Link 
+                        href={`/wanted/${person.id}`} 
+                        key={person.id} 
+                        className="group bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col cursor-pointer relative"
+                      >
+                        {/* Container Imagine */}
+                        <div className={`h-64 w-full relative bg-gray-200 overflow-hidden transition-all duration-300 ${isFav ? "ring-4 ring-green-500 ring-inset" : ""}`}>
+                          {/* Overlay Verde subtil dacă e favorit */}
+                          {isFav && <div className="absolute inset-0 bg-green-500/20 z-10 pointer-events-none mix-blend-multiply" />}
+                          
+                          <img 
+                            src={person.mainImageUrl || '/placeholder.png'} 
+                            alt={person.title}
+                            className={`w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-110 ${isFav ? "grayscale-0" : ""}`}
+                            onError={(e) => { (e.target as HTMLImageElement).src = 'https://placehold.co/400x600?text=No+Image'; }}
+                          />
+
+                          {/* BUTON INIMIOARA */}
+                          <button
+                            onClick={(e) => toggleFavorite(e, person.id)}
+                            className="absolute top-2 right-2 z-20 p-2 bg-white/80 backdrop-blur-sm rounded-full shadow-lg hover:bg-white hover:scale-110 transition-all active:scale-95"
+                            title={isFav ? "Elimină din salvate" : "Salvează"}
+                          >
+                            {isFav ? (
+                                // Inima Plină (Roșie sau Verde, cum preferi)
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6 text-red-500">
+                                <path d="m11.645 20.91-.007-.003-.022-.012a15.247 15.247 0 0 1-.383-.218 25.18 25.18 0 0 1-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0 1 12 5.052 5.5 5.5 0 0 1 16.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 0 1-4.244 3.17 15.247 15.247 0 0 1-.383.219l-.022.012-.007.004-.003.001a.752.752 0 0 1-.704 0l-.003-.001Z" />
+                                </svg>
+                            ) : (
+                                // Inima Goala (Outline)
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 text-gray-500">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z" />
+                                </svg>
+                            )}
+                          </button>
+                        </div>
+
+                        <div className="p-4 flex-grow">
+                          <h2 className="font-bold text-lg text-gray-800 line-clamp-1" title={person.title}>{person.title}</h2>
+                          {person.rewardText && (
+                            <p className="text-sm text-green-600 font-semibold mt-1 truncate">💰 {person.rewardText}</p>
+                          )}
+                        </div>
+                      </Link>
+                    );
+                  })}
                 </div>
 
                 {/* ZONA DE CONTROL JOS */}
                 {data && data.totalCount > 0 && (
-                    <div className="flex flex-col md:flex-row justify-between items-center mt-12 gap-4 bg-white p-4 rounded-xl shadow-sm">
-                        
-                        {/* Selector Page Size */}
+                    <div className="flex flex-col md:flex-row justify-between items-center mt-12 gap-4 bg-white p-4 rounded-xl shadow-sm border border-gray-100">
                         <div className="flex items-center gap-2">
                             <span className="text-sm text-gray-600">Show:</span>
                             <select 
                                 value={pageSize} 
                                 onChange={handlePageSizeChange}
-                                className="border border-gray-300 rounded p-1 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                                className="border border-gray-300 rounded p-1 text-sm focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer"
                             >
                                 <option value="12">12</option>
                                 <option value="24">24</option>
@@ -155,41 +187,38 @@ export default function Home() {
                             </select>
                         </div>
 
-                        {/* Controale Pagină */}
                         <div className="flex items-center gap-4">
                             <button 
                                 onClick={handlePrevPage}
                                 disabled={pageNumber === 1}
-                                className="px-4 py-2 bg-gray-100 border border-gray-300 rounded-lg disabled:opacity-50 hover:bg-gray-200 text-gray-700 font-medium transition-colors"
+                                className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg disabled:opacity-50 hover:bg-gray-100 text-gray-700 font-medium transition-colors"
                             >
                                 &larr; Prev
                             </button>
                             
-                            <span className="text-gray-700 font-medium">
-                                {/* Folosim 'pageNumber' din state și 'totalPages' calculat */}
-                                Page <span className="text-blue-600">{pageNumber}</span> of {totalPages}
+                            <span className="text-gray-700 font-medium text-sm">
+                                Page <span className="text-blue-600 font-bold">{pageNumber}</span> of {totalPages}
                             </span>
 
                             <button 
                                 onClick={handleNextPage}
-                                disabled={pageNumber >= totalPages} // Disable dacă suntem la capăt
-                                className="px-4 py-2 bg-gray-100 border border-gray-300 rounded-lg disabled:opacity-50 hover:bg-gray-200 text-gray-700 font-medium transition-colors"
+                                disabled={pageNumber >= totalPages}
+                                className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg disabled:opacity-50 hover:bg-gray-100 text-gray-700 font-medium transition-colors"
                             >
                                 Next &rarr;
                             </button>
                         </div>
                         
-                        {/* Info Total: folosim data.totalCount */}
                         <div className="text-sm text-gray-500">
-                            Total: {data.totalCount} records
+                            Total: <span className="font-semibold text-gray-900">{data.totalCount}</span> records
                         </div>
                     </div>
                 )}
 
-                {/* Verificăm data.items.length */}
                 {data?.items.length === 0 && (
-                    <div className="text-center text-gray-500 mt-10 text-lg">
-                        Nu am găsit rezultate.
+                    <div className="flex flex-col items-center justify-center py-20 text-gray-500">
+                        <div className="text-6xl mb-4">🔍</div>
+                        <div className="text-xl font-medium">Nu am găsit rezultate pentru "{debouncedSearch}"</div>
                     </div>
                 )}
             </>

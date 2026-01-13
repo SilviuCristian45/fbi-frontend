@@ -1,5 +1,6 @@
 import { ApiResponse } from "../types/api";
 import { WantedPersonDetail } from "@/src/types/wanted-person";
+import { SavePerson } from "../types/save-person";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -47,11 +48,11 @@ export async function authFetch<T>(url: string, options: RequestInit = {}): Prom
   });
 }
 
-
-
-// ... funcțiile existente authFetch, etc ...
-
 // Funcție nouă pentru detalii
 export async function getWantedPersonById(id: string | number): Promise<ApiResponse<WantedPersonDetail>> {
   return authFetch<WantedPersonDetail>(`/FbiWanted/${id}`);
+}
+
+export async function saveFavourite(personId: number) {
+  return authFetch<SavePerson>(`/FbiWanted/${personId}`, {method: 'POST'});
 }
