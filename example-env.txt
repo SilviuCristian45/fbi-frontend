@@ -1,0 +1,2 @@
+# Atenție: Nu pune slash "/" la final!
+NEXT_PUBLIC_API_URL=http://localhost:7002/api
