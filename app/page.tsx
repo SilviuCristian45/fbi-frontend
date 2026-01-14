@@ -44,7 +44,15 @@ export default function Home() {
       const result = await authFetch<PagedResult<WantedPersonSummary>>(
         `/FbiWanted?${params.toString()}` // Am pus slash in fata ca sa fie safe
       );
-      
+
+      if (favorites.length == 0) {
+         const resultSaved = await authFetch<PagedResult<WantedPersonSummary>>(
+          `/FbiWanted/saved?${params.toString()}` // Am pus slash in fata ca sa fie safe
+        );
+        setFavorites(resultSaved.data.items.map(it => it.id))
+       console.log(resultSaved.data.items.map(it => it.id))
+      }
+     
       setData(result.data);
     } catch (error) {
       console.error("Eroare:", error);
