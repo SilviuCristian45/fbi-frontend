@@ -27,7 +27,7 @@ function ClickHandler({ setPosition }: { setPosition: (pos: [number, number]) =>
     const map = useMapEvents({
         click(e) {
             console.log("📍 Click detectat la:", e.latlng); // Debug în consolă
-            setPosition([e.latlng.lat, e.latlng.lng]);
+            setPosition([parseFloat(e.latlng.lat.toFixed(6)) ?? 45, parseFloat(e.latlng.lng.toFixed(6)) ?? 45]);
         },
     });
     return null;

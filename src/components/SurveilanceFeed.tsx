@@ -9,34 +9,34 @@ useEffect(() => {
     // Luăm token-ul din localStorage
     const token = localStorage.getItem("token");
 
-    const connection = new signalR.HubConnectionBuilder()
-      .withUrl("http://localhost:7002/hubs/surveillance", {
-          // 🔥 AICI E CHEIA: Trimitem tokenul prin WebSocket
-          accessTokenFactory: () => token || "" 
-      })
-      .withAutomaticReconnect()
-      .build();
+    // const connection = new signalR.HubConnectionBuilder()
+    //   .withUrl("http://localhost:7002/hubs/surveillance", {
+    //       // 🔥 AICI E CHEIA: Trimitem tokenul prin WebSocket
+    //       accessTokenFactory: () => token || "" 
+    //   })
+    //   .withAutomaticReconnect()
+    //   .build();
 
-    connection.start()
-      .then(() => console.log("Conectat la Surveillance Hub 🕵️‍♂️"))
-      .catch(err => console.error("Eroare SignalR:", err));
+    // connection.start()
+    //   .then(() => console.log("Conectat la Surveillance Hub 🕵️‍♂️"))
+    //   .catch(err => console.error("Eroare SignalR:", err));
 
     // 3. Ascultăm evenimentul "ReceiveActivity" (trimis din C#)
-    connection.on("ReceiveActivity", (message: string) => {
-      // Adăugăm mesajul nou în listă
-      const newMessage = message + " la data " + new Date().toLocaleDateString('ro-RO') + " la ora " + new Date().toLocaleTimeString("ro-RO")
-      setMessages(prev => [newMessage, ...prev].slice(0, 5)); // Ținem doar ultimele 5
-    });
+    // connection.on("ReceiveActivity", (message: string) => {
+    //   // Adăugăm mesajul nou în listă
+    //   const newMessage = message + " la data " + new Date().toLocaleDateString('ro-RO') + " la ora " + new Date().toLocaleTimeString("ro-RO")
+    //   setMessages(prev => [newMessage, ...prev].slice(0, 5)); // Ținem doar ultimele 5
+    // });
 
-    connection.on("ReceiveLocation", (message) => {
-        const newMessage = "Locatia : " + message;
-        setMessages(prev => [newMessage, ...prev].slice(0, 5)); // Ținem doar ultimele 5
-    })
+    // connection.on("ReceiveLocation", (message) => {
+    //     const newMessage = "Locatia : " + message;
+    //     setMessages(prev => [newMessage, ...prev].slice(0, 5)); // Ținem doar ultimele 5
+    // })
 
     // Cleanup
-    return () => {
-        connection.stop();
-    };
+    // return () => {
+    //     connection.stop();
+    // };
 
     }, []);
 

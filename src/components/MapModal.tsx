@@ -11,23 +11,55 @@ const MapInner = dynamic(() => import("./MapInner"), {
 interface MapModalProps {
   isOpen: boolean;
   onClose: () => void;
-  // 👇 UPDATED: Acum primim și 'details'
   onSubmit: (lat: number, lng: number, details: string) => void;
   personName: string;
 }
 
 export default function MapModal({ isOpen, onClose, onSubmit, personName }: MapModalProps) {
   const [position, setPosition] = useState<[number, number] | null>(null);
-  // 👇 NEW: State pentru text
   const [details, setDetails] = useState("");
+  const [addressLoading, setAddressLoading] = useState(false); // Feedback vizual
 
-  // Resetăm poziția și textul când se deschide modalul
+  // Reset la deschidere
   useEffect(() => {
     if (isOpen) {
         setPosition(null);
-        setDetails(""); // Reset text
+        setDetails("");
+        setAddressLoading(false);
     }
   }, [isOpen]);
+
+  // 🔥 EFECT NOU: Când se schimbă pinul, căutăm orașul
+  useEffect(() => {
+    if (!position) return;
+
+    const [lat, lng] = position;
+    
+    const fetchAddress = async () => {
+        setAddressLoading(true);
+        try {
+            // API-ul OpenStreetMap (Gratuit)
+            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
+            const data = await res.json();
+
+            if (data && data.display_name) {
+                // Adăugăm adresa la începutul detaliilor
+                const adresa = `📍 Adresă estimată: ${data.display_name}\n\n`;
+                // Păstrăm ce a scris userul, dacă a scris ceva
+                setDetails(prev => adresa + (prev.includes("Adresă estimată") ? prev.split("\n\n")[1] || "" : prev));
+            }
+        } catch (error) {
+            console.error("Nu am putut găsi adresa:", error);
+        } finally {
+            setAddressLoading(false);
+        }
+    };
+
+    // Debounce mic ca să nu spamăm API-ul dacă dă click rapid
+    const timeoutId = setTimeout(fetchAddress, 500);
+    return () => clearTimeout(timeoutId);
+
+  }, [position]); // Se execută când 'position' se schimbă
 
   if (!isOpen) return null;
 
@@ -41,7 +73,6 @@ export default function MapModal({ isOpen, onClose, onSubmit, personName }: MapM
           <button onClick={onClose} className="text-gray-400 hover:text-white text-2xl leading-none">&times;</button>
         </div>
 
-        {/* --- SCROLLABLE CONTENT --- */}
         <div className="overflow-y-auto flex-grow">
             
             {/* Map Body */}
@@ -54,33 +85,31 @@ export default function MapModal({ isOpen, onClose, onSubmit, personName }: MapM
                 )}
             </div>
 
-            {/* 👇 NEW: Zona de Detalii */}
+            {/* Zona de Detalii */}
             <div className="p-4 bg-gray-50 space-y-2">
-                <label className="block text-sm font-semibold text-gray-700">
-                    Detalii suplimentare (Opțional)
-                </label>
+                <div className="flex justify-between items-center">
+                    <label className="block text-sm font-semibold text-gray-700">
+                        Detalii suplimentare
+                    </label>
+                    {addressLoading && <span className="text-xs text-blue-600 animate-pulse">Se caută adresa... 🛰️</span>}
+                </div>
+                
                 <textarea 
                     value={details}
                     onChange={(e) => setDetails(e.target.value)}
-                    placeholder="Ex: Purta o jachetă roșie, ochelari de soare și a intrat în stația de metrou..."
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm min-h-[100px] resize-y text-gray-800"
+                    placeholder="Ex: L-am văzut ieșind dintr-un magazin..."
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm min-h-[100px] resize-y text-gray-800"
                 />
             </div>
         </div>
 
         {/* Footer Actions */}
         <div className="p-4 bg-white flex justify-end gap-3 border-t shrink-0">
+          <button onClick={onClose} className="px-4 py-2 text-gray-600 font-medium hover:bg-gray-100 rounded">Anulează</button>
           <button 
-            onClick={onClose}
-            className="px-4 py-2 text-gray-600 font-medium hover:bg-gray-100 rounded transition-colors"
-          >
-            Anulează
-          </button>
-          <button 
-            // 👇 UPDATED: Trimitem și details
             onClick={() => position && onSubmit(position[0], position[1], details)}
             disabled={!position}
-            className="px-4 py-2 bg-blue-600 text-white font-medium rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2 shadow-lg shadow-blue-600/20"
+            className="px-4 py-2 bg-blue-600 text-white font-medium rounded hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2 shadow-lg"
           >
             <span>Trimite Raport</span> 🚀
           </button>
