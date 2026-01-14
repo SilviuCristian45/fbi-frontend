@@ -3,6 +3,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import SurveillanceFeed from "./SurveilanceFeed";
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -32,6 +33,12 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Dacă e logat, randăm pagina protejată
-  return <>{children}</>;
+  return (
+    <>
+      {children}
+      
+      {/* 2. Adaug-o aici la final. Fiind 'fixed', va sta peste conținut */}
+      <SurveillanceFeed /> 
+    </>
+  );
 }
