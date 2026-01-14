@@ -1,36 +1,39 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🕵️‍♂️ FBI Most Wanted - Intelligence Platform
 
-## Getting Started
+O platformă modernă de urmărire și crowdsourcing pentru persoanele căutate de FBI, construită cu **.NET 8**, **Next.js 14** și **Real-time Websockets**.
 
-First, run the development server:
+![Dashboard Screenshot](screenshots/image.png) **
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## 🚀 Funcționalități Cheie
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+* **🕵️‍♂️ Data Ingestion:** Background Service care preia automat datele de la FBI API și le sincronizează în PostgreSQL.
+* **⚡ Real-Time Intel Feed:** Sistem bazat pe **SignalR** unde agenții primesc notificări live (vizuale și audio) când un coleg raportează o locație.
+* **🗺️ Geospatial Intelligence:** Integrare cu **Leaflet Maps** pentru raportarea locațiilor suspecte + **Reverse Geocoding** automat.
+* **🔐 Securitate Enterprise:** Autentificare prin **Keycloak (OAuth2/OIDC)** cu roluri separate (Admin/Agent).
+* **📱 UI Modern:** Interfață React responsivă cu Tailwind CSS, Toast Notifications și Modale interactive.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 🛠️ Tech Stack
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Backend (.NET 8)
+* **Architecture:** Clean Architecture, Repository Pattern
+* **Database:** Entity Framework Core + PostgreSQL
+* **Real-time:** SignalR Hubs
+* **Auth:** JWT Bearer + Keycloak Integration
 
-## Learn More
+### Frontend (Next.js 14)
+* **Framework:** App Router, Server Components & Client Hooks
+* **Styling:** Tailwind CSS
+* **Maps:** React-Leaflet (OpenStreetMap)
+* **State:** React Hooks + Optimistic Updates
 
-To learn more about Next.js, take a look at the following resources:
+## 🏗️ Arhitectură
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```mermaid
+graph TD
+    User[💻 User Browser] -->|Next.js App| FE[Frontend Container]
+    FE -->|REST API| BE[Backend .NET API]
+    FE -->|WebSockets| Hub[SignalR Hub]
+    BE -->|Read/Write| DB[(PostgreSQL)]
+    BE -->|Sync| FBI[FBI Public API]
+    FE -->|Auth| KC[Keycloak Server]
+    BE -->|Validate Token| KC
