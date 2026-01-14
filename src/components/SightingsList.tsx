@@ -96,7 +96,7 @@ export default function SightingsList({ wantedId }: { wantedId: number }) {
         if (!token) return;
 
         const connection = new signalR.HubConnectionBuilder()
-            .withUrl("http://localhost:7002/hubs/surveillance", {
+            .withUrl(process.env.NEXT_PUBLIC_WEBSOCKETS_URL ?? "http://localhost:7002/hubs/surveillance", {
                 accessTokenFactory: () => token,
                 skipNegotiation: true,
                 transport: signalR.HttpTransportType.WebSockets
