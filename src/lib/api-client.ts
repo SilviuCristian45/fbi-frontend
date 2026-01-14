@@ -56,3 +56,10 @@ export async function getWantedPersonById(id: string | number): Promise<ApiRespo
 export async function saveFavourite(personId: number, save: boolean) {
   return authFetch<SavePerson>(`/FbiWanted/${personId}/${save}`, {method: 'POST'});
 }
+
+export async function reportLocation(wantedId: number, lat: number, lng: number, details: string): Promise<ApiResponse<boolean>> {
+  return authFetch("/FbiWanted/report-location", { // Asigura-te ca ai endpoint-ul asta in .NET
+    method: "POST",
+    body: JSON.stringify({ wantedId, lat, lng, details }),
+  });
+}
