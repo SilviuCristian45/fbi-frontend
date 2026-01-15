@@ -11,7 +11,7 @@ const MapInner = dynamic(() => import("./MapInner"), {
 interface MapModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (lat: number, lng: number, details: string) => void;
+  onSubmit: (lat: number, lng: number, details: string, fileUrl: File | null) => void;
   personName: string;
 }
 
@@ -19,6 +19,9 @@ export default function MapModal({ isOpen, onClose, onSubmit, personName }: MapM
   const [position, setPosition] = useState<[number, number] | null>(null);
   const [details, setDetails] = useState("");
   const [addressLoading, setAddressLoading] = useState(false); // Feedback vizual
+
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   // Reset la deschidere
   useEffect(() => {
@@ -100,6 +103,34 @@ export default function MapModal({ isOpen, onClose, onSubmit, personName }: MapM
                     placeholder="Ex: L-am văzut ieșind dintr-un magazin..."
                     className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm min-h-[100px] resize-y text-gray-800"
                 />
+
+                {/* 👇 INPUT PENTRU FIȘIER */}
+               <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:bg-gray-100 transition-colors">
+                   <label className="cursor-pointer block w-full h-full">
+                       <span className="text-gray-600 text-sm font-semibold">
+                           {selectedFile ? `📸 ${selectedFile.name}` : "Atașează o poză (Click aici)"}
+                       </span>
+                       <input 
+                           type="file" 
+                           className="hidden" 
+                           accept="image/*" // Doar imagini
+                           onChange={(e) => {
+                               // e.target.files este o listă (FileList). Luăm primul element.
+                               if (e.target.files && e.target.files.length > 0) {
+                                   setSelectedFile(e.target.files[0]);
+                               }
+                           }}
+                       />
+                   </label>
+                   {selectedFile && (
+                       <button 
+                         onClick={(e) => { e.preventDefault(); setSelectedFile(null); }}
+                         className="text-xs text-red-500 mt-2 hover:underline"
+                       >
+                         Șterge poza
+                       </button>
+                   )}
+              </div>
             </div>
         </div>
 
@@ -107,7 +138,7 @@ export default function MapModal({ isOpen, onClose, onSubmit, personName }: MapM
         <div className="p-4 bg-white flex justify-end gap-3 border-t shrink-0">
           <button onClick={onClose} className="px-4 py-2 text-gray-600 font-medium hover:bg-gray-100 rounded">Anulează</button>
           <button 
-            onClick={() => position && onSubmit(position[0], position[1], details)}
+            onClick={() => position && onSubmit(position[0], position[1], details, selectedFile)}
             disabled={!position}
             className="px-4 py-2 bg-blue-600 text-white font-medium rounded hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2 shadow-lg"
           >

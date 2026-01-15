@@ -5,6 +5,7 @@ import * as signalR from "@microsoft/signalr";
 import { authFetch } from "@/src/lib/api-client";
 // 🔥 1. Importăm Toast
 import toast, { Toaster } from "react-hot-toast";
+import RouteModal from "./RouteModal";
 
 interface Sighting {
     id: number;
@@ -14,12 +15,14 @@ interface Sighting {
     reportedBy: string;
     timestamp: string;
     wantedPersonId: number;
+    fileUrl: string;
 }
 
 export default function SightingsList({ wantedId }: { wantedId: number }) {
     const [sightings, setSightings] = useState<Sighting[]>([]);
     const [loading, setLoading] = useState(true);
     const [highlightId, setHighlightId] = useState<number | null>(null);
+    const [isRouteModalOpen, setIsRouteModalOpen] = useState(false);
 
     const playNotificationSound = () => {
         try {
@@ -129,6 +132,14 @@ export default function SightingsList({ wantedId }: { wantedId: number }) {
             {/* 🔥 2. Adăugăm componenta Toaster aici (invizibilă până apare notificarea) */}
             <Toaster />
 
+            {/* 3. Modalul este randat condiționat aici */}
+            <RouteModal 
+                isOpen={isRouteModalOpen}
+                onClose={() => setIsRouteModalOpen(false)}
+                locations={sightings}
+                title={`Target #${wantedId}`}
+            />
+
             <div className="bg-slate-900 px-6 py-4 border-b border-slate-800 flex justify-between items-center">
                 <h3 className="font-bold text-white flex items-center gap-2">
                     <span className="relative flex h-3 w-3">
@@ -138,7 +149,22 @@ export default function SightingsList({ wantedId }: { wantedId: number }) {
                     Live Intelligence Feed
                 </h3>
                 <span className="text-xs text-slate-400 bg-slate-800 px-2 py-1 rounded">Secured Channel</span>
+
+                {/* 4. Butonul NOU de Traseu */}
+                <button 
+                    onClick={() => setIsRouteModalOpen(true)}
+                    disabled={sightings.length === 0}
+                    className="ml-4 flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-3 py-2 rounded shadow transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                        <path fillRule="evenodd" d="M9.661 2.237a.531.531 0 0 1 .678 0 11.947 11.947 0 0 0 6.878 2.743c.46.03.84.385.864.832a13.6 13.6 0 0 0 .19 3.061c.147 1.891-.29 3.739-1.292 5.34a13.526 13.526 0 0 1-5.13 5.397.75.75 0 0 1-.77 0 13.525 13.525 0 0 1-5.13-5.396 11.233 11.233 0 0 1-1.293-5.342 13.61 13.61 0 0 0 .19-3.062c.024-.446.404-.801.864-.832a11.947 11.947 0 0 0 6.878-2.744ZM6.75 9a.75.75 0 0 0-1.5 0v2.536c0 .284.114.556.316.757l2.641 2.641a.75.75 0 1 0 1.06-1.06L6.75 11.328V9Z" clipRule="evenodd" />
+                    </svg>
+                    View Route
+                </button>
+           
             </div>
+
+            
 
             <div className="max-h-[400px] overflow-y-auto p-0 scrollbar-thin scrollbar-thumb-gray-300">
                 {loading ? (
@@ -176,6 +202,15 @@ export default function SightingsList({ wantedId }: { wantedId: number }) {
                                         >
                                             Vezi pe Harta 🗺️
                                         </a>
+
+                                        <a
+                                            href={`${report.fileUrl}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-xs bg-gray-100 hover:bg-blue-100 text-gray-600 hover:text-blue-700 px-2 py-1 rounded border border-gray-200 transition-colors"
+                                            >
+                                                Vezi imaginea
+                                            </a>
                                     </div>
                                     <p className="text-gray-800 text-sm mt-2 font-medium">{report.details}</p>
                                     <div className="mt-2 text-xs font-mono text-gray-500 flex gap-4">

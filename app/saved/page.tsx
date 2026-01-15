@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import AuthGuard from "@/src/components/AuthGuard";
-import { authFetch, saveFavourite, reportLocation } from "@/src/lib/api-client"; // Importam reportLocation
+import { authFetch, saveFavourite, reportLocation, uploadFile } from "@/src/lib/api-client"; // Importam reportLocation
 import { PagedResult, WantedPersonSummary } from "@/src/types/wanted-person";
 import Link from "next/link";
 import { Navbar } from "@/src/components/Navbar";
@@ -92,11 +92,12 @@ export default function Saved() {
   };
 
   // --- HANDLER TRIMITERE LOCATIE ---
-  const handleSubmitLocation = async (lat: number, lng: number, details: string) => {
+  const handleSubmitLocation = async (lat: number, lng: number, details: string, file: File | null) => {
     if (!selectedPersonForMap) return;
 
     try {
-        await reportLocation(selectedPersonForMap.id, lat, lng, details );
+        const fileUrl = file ? await uploadFile(file) : "no image";
+        await reportLocation(selectedPersonForMap.id, lat, lng, details, fileUrl );
         alert("Locația a fost trimisă cu succes! 🕵️‍♂️");
         setIsMapOpen(false);
         setSelectedPersonForMap(null);

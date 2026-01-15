@@ -57,9 +57,35 @@ export async function saveFavourite(personId: number, save: boolean) {
   return authFetch<SavePerson>(`/FbiWanted/${personId}/${save}`, {method: 'POST'});
 }
 
-export async function reportLocation(wantedId: number, lat: number, lng: number, details: string): Promise<ApiResponse<boolean>> {
+export async function reportLocation(wantedId: number, lat: number, lng: number, details: string, fileUrl: string): Promise<ApiResponse<boolean>> {
   return authFetch("/FbiWanted/report-location", { // Asigura-te ca ai endpoint-ul asta in .NET
     method: "POST",
-    body: JSON.stringify({ wantedId, lat, lng, details }),
+    body: JSON.stringify({ wantedId, lat, lng, details, fileUrl }),
   });
+}
+
+export async function uploadFile(file: File): Promise<string> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  try {
+    // Atenție: Aici pui portul microserviciului (7005), NU al backend-ului principal
+    const response = await fetch(process.env.NEXT_PUBLIC_FILE_API ?? '', {
+      method: "POST",
+      body: formData,
+      headers: {
+        "X-Api-Key": process.env.NEXT_PUBLIC_FILE_API_KEY ?? ""
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`Upload failed: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data.url;
+  } catch (error) {
+    console.error("Eroare la upload:", error);
+    throw error;
+  }
 }
