@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import * as signalR from "@microsoft/signalr";
 import { authFetch } from "@/src/lib/api-client";
-// 🔥 1. Importăm Toast
 import toast, { Toaster } from "react-hot-toast";
 import RouteModal from "./RouteModal";
+// 👇 1. Importăm hook-ul de context (folosește calea relativă ca să nu ai erori)
+import { useSignalR } from "../context/SignalRContext"; 
 
 interface Sighting {
     id: number;
@@ -24,9 +24,19 @@ export default function SightingsList({ wantedId }: { wantedId: number }) {
     const [highlightId, setHighlightId] = useState<number | null>(null);
     const [isRouteModalOpen, setIsRouteModalOpen] = useState(false);
 
+    // 👇 2. Luăm conexiunea gata făcută din AuthGuard
+    const { connection } = useSignalR(); 
+
+    // Helper: Verifică dacă e video
+    const isVideo = (url: string) => {
+        if (!url) return false;
+        const ext = url.split('.').pop()?.toLowerCase();
+        return ['mp4', 'mov', 'webm', 'ogg', 'avi'].includes(ext || '');
+    };
+
     const playNotificationSound = () => {
         try {
-            const audio = new Audio("https://freesound.org/embed/sound/iframe/738813/");
+            const audio = new Audio("../../sounds/notif.wav");
             audio.volume = 0.5;
             audio.play().catch((e) => console.log("Audio autoplay blocked", e));
         } catch (error) {
@@ -34,49 +44,31 @@ export default function SightingsList({ wantedId }: { wantedId: number }) {
         }
     };
 
-    // --- Funcție Helper pentru Notificare Personalizată ---
     const showTacticalToast = (report: Sighting) => {
         toast.custom((t) => (
-            <div
-                className={`${
-                    t.visible ? 'animate-enter' : 'animate-leave'
-                } max-w-md w-full bg-slate-900 shadow-2xl rounded-lg pointer-events-auto flex ring-1 ring-black ring-opacity-5 border-l-4 border-red-500`}
-            >
+            <div className={`${t.visible ? 'animate-enter' : 'animate-leave'} max-w-md w-full bg-slate-900 shadow-2xl rounded-lg pointer-events-auto flex ring-1 ring-black ring-opacity-5 border-l-4 border-red-500`}>
                 <div className="flex-1 w-0 p-4">
                     <div className="flex items-start">
                         <div className="flex-shrink-0 pt-0.5">
-                            {/* Iconiță Radar Pulsând */}
                             <div className="relative flex h-10 w-10 items-center justify-center rounded-full bg-slate-800">
                                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-20"></span>
                                 <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
                             </div>
                         </div>
                         <div className="ml-3 flex-1">
-                            <p className="text-sm font-bold text-red-400 uppercase tracking-wider">
-                                New Intel Received
-                            </p>
-                            <p className="mt-1 text-sm text-gray-300">
-                                Agent <span className="text-white font-semibold">{report.reportedBy}</span> a raportat o locație nouă!
-                            </p>
-                            <p className="mt-1 text-xs text-gray-500 italic line-clamp-1">
-                                "{report.details}"
-                            </p>
+                            <p className="text-sm font-bold text-red-400 uppercase tracking-wider">New Intel Received</p>
+                            <p className="mt-1 text-sm text-gray-300">Agent <span className="text-white font-semibold">{report.reportedBy}</span> a raportat o locație nouă!</p>
                         </div>
                     </div>
                 </div>
                 <div className="flex border-l border-slate-700">
-                    <button
-                        onClick={() => toast.dismiss(t.id)}
-                        className="w-full border border-transparent rounded-none rounded-r-lg p-4 flex items-center justify-center text-sm font-medium text-gray-400 hover:text-white focus:outline-none"
-                    >
-                        Close
-                    </button>
+                    <button onClick={() => toast.dismiss(t.id)} className="w-full border border-transparent rounded-none rounded-r-lg p-4 flex items-center justify-center text-sm font-medium text-gray-400 hover:text-white focus:outline-none">Close</button>
                 </div>
             </div>
         ), { duration: 5000, position: "top-right" });
     };
 
-    // 1. HTTP Load
+    // 3. Încărcare inițială (HTTP)
     useEffect(() => {
         const fetchHistory = async () => {
             try {
@@ -93,46 +85,38 @@ export default function SightingsList({ wantedId }: { wantedId: number }) {
         fetchHistory();
     }, [wantedId]);
 
-    // 2. SignalR
+    // 🔥 4. SIGNALR OPTIMIZAT (Folosim conexiunea partajată)
     useEffect(() => {
-        const token = localStorage.getItem("token");
-        if (!token) return;
+        // Dacă conexiunea nu e gata (AuthGuard încă lucrează), așteptăm
+        if (!connection) return;
 
-        const connection = new signalR.HubConnectionBuilder()
-            .withUrl(process.env.NEXT_PUBLIC_WEBSOCKETS_URL ?? "http://localhost:7002/hubs/surveillance", {
-                accessTokenFactory: () => token,
-                skipNegotiation: true,
-                transport: signalR.HttpTransportType.WebSockets
-            })
-            .withAutomaticReconnect()
-            .build();
+        console.log("🔗 SightingsList s-a abonat la conexiunea globală.");
 
-        connection.start().catch(err => console.error("SignalR error:", err));
-
-        connection.on("ReceiveLocation", (newReport: Sighting) => {
+        // Definim handler-ul
+        const handleNewLocation = (newReport: Sighting) => {
             if (newReport.wantedPersonId === Number(wantedId)) {
                 setSightings(prev => [newReport, ...prev]);
                 setHighlightId(newReport.id);
-                
-                // 🔥 AICI SE ÎNTÂMPLĂ MAGIA
-                playNotificationSound();   // 🔊 Sunet
-                showTacticalToast(newReport); // 🔔 Notificare Vizuală
-
+                playNotificationSound();
+                showTacticalToast(newReport);
                 setTimeout(() => setHighlightId(null), 5000);
             }
-        });
-
-        return () => {
-            connection.stop();
         };
-    }, [wantedId]);
+
+        // Ne ABONĂM la eveniment
+        connection.on("ReceiveLocation", handleNewLocation);
+
+        // CLEANUP: Ne DEZABONĂM doar de la acest eveniment când ieșim de pe pagină.
+        // NU oprim conexiunea (connection.stop), pentru că e folosită de AuthGuard!
+        return () => {
+            connection.off("ReceiveLocation", handleNewLocation);
+            console.log("🔌 SightingsList s-a dezabonat.");
+        };
+    }, [connection, wantedId]);
 
     return (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            {/* 🔥 2. Adăugăm componenta Toaster aici (invizibilă până apare notificarea) */}
             <Toaster />
-
-            {/* 3. Modalul este randat condiționat aici */}
             <RouteModal 
                 isOpen={isRouteModalOpen}
                 onClose={() => setIsRouteModalOpen(false)}
@@ -149,30 +133,20 @@ export default function SightingsList({ wantedId }: { wantedId: number }) {
                     Live Intelligence Feed
                 </h3>
                 <span className="text-xs text-slate-400 bg-slate-800 px-2 py-1 rounded">Secured Channel</span>
-
-                {/* 4. Butonul NOU de Traseu */}
                 <button 
                     onClick={() => setIsRouteModalOpen(true)}
                     disabled={sightings.length === 0}
                     className="ml-4 flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-3 py-2 rounded shadow transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-                        <path fillRule="evenodd" d="M9.661 2.237a.531.531 0 0 1 .678 0 11.947 11.947 0 0 0 6.878 2.743c.46.03.84.385.864.832a13.6 13.6 0 0 0 .19 3.061c.147 1.891-.29 3.739-1.292 5.34a13.526 13.526 0 0 1-5.13 5.397.75.75 0 0 1-.77 0 13.525 13.525 0 0 1-5.13-5.396 11.233 11.233 0 0 1-1.293-5.342 13.61 13.61 0 0 0 .19-3.062c.024-.446.404-.801.864-.832a11.947 11.947 0 0 0 6.878-2.744ZM6.75 9a.75.75 0 0 0-1.5 0v2.536c0 .284.114.556.316.757l2.641 2.641a.75.75 0 1 0 1.06-1.06L6.75 11.328V9Z" clipRule="evenodd" />
-                    </svg>
-                    View Route
+                    View Route 🗺️
                 </button>
-           
             </div>
-
-            
 
             <div className="max-h-[400px] overflow-y-auto p-0 scrollbar-thin scrollbar-thumb-gray-300">
                 {loading ? (
                     <div className="p-8 text-center text-gray-500">Se decriptează datele...</div>
                 ) : sightings.length === 0 ? (
-                    <div className="p-8 text-center text-gray-400 italic">
-                        Nicio raportare recentă în baza de date.
-                    </div>
+                    <div className="p-8 text-center text-gray-400 italic">Nicio raportare recentă în baza de date.</div>
                 ) : (
                     <div className="divide-y divide-gray-100">
                         {sightings.map((report) => {
@@ -180,39 +154,55 @@ export default function SightingsList({ wantedId }: { wantedId: number }) {
                             return (
                                 <div 
                                     key={report.id} 
-                                    className={`p-4 transition-all duration-1000 ${
-                                        isNew 
-                                            ? "bg-red-100 border-l-4 border-red-500 shadow-inner" 
-                                            : "hover:bg-slate-50 border-l-4 border-transparent"
-                                    }`}
+                                    className={`p-4 transition-all duration-1000 ${isNew ? "bg-red-100 border-l-4 border-red-500 shadow-inner" : "hover:bg-slate-50 border-l-4 border-transparent"}`}
                                 >
                                     <div className="flex justify-between items-start mb-1">
                                         <div className="flex items-center gap-2">
-                                            <span className={`font-bold text-sm ${isNew ? 'text-red-800' : 'text-blue-700'}`}>
-                                                Agent {report.reportedBy}
-                                            </span>
+                                            <span className={`font-bold text-sm ${isNew ? 'text-red-800' : 'text-blue-700'}`}>Agent {report.reportedBy}</span>
                                             <span className="text-xs text-gray-400">• {new Date(report.timestamp).toLocaleString()}</span>
                                             {isNew && <span className="text-xs bg-red-500 text-white px-1.5 rounded font-bold animate-pulse">NEW</span>}
                                         </div>
                                         <a 
                                             href={`https://www.google.com/maps/search/?api=1&query=${report.lat},${report.lng}`} 
-                                            target="_blank"
-                                            rel="noopener noreferrer"
+                                            target="_blank" rel="noopener noreferrer"
                                             className="text-xs bg-gray-100 hover:bg-blue-100 text-gray-600 hover:text-blue-700 px-2 py-1 rounded border border-gray-200 transition-colors"
                                         >
-                                            Vezi pe Harta 🗺️
+                                            Harta 🗺️
                                         </a>
-
-                                        <a
-                                            href={`${report.fileUrl}`}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="text-xs bg-gray-100 hover:bg-blue-100 text-gray-600 hover:text-blue-700 px-2 py-1 rounded border border-gray-200 transition-colors"
-                                            >
-                                                Vezi imaginea/videoclipul
-                                            </a>
                                     </div>
+                                    
                                     <p className="text-gray-800 text-sm mt-2 font-medium">{report.details}</p>
+
+                                    {/* 👇 AFISARE MEDIA */}
+                                    {report.fileUrl && (
+                                        <div className="mt-3 mb-2">
+                                            {isVideo(report.fileUrl) ? (
+                                                <div className="relative rounded-lg overflow-hidden bg-black border border-gray-300">
+                                                    <video 
+                                                        src={report.fileUrl} 
+                                                        controls 
+                                                        className="w-full h-48 object-contain"
+                                                    />
+                                                    <div className="absolute top-2 left-2 bg-black/60 text-white text-[10px] px-2 py-0.5 rounded uppercase font-bold tracking-wider">
+                                                        🎥 Video Evidence
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <div className="relative group">
+                                                    <img 
+                                                        src={report.fileUrl} 
+                                                        alt="Evidence" 
+                                                        className="w-full h-48 object-cover rounded-lg border border-gray-300 hover:opacity-95 transition-opacity cursor-pointer"
+                                                        onClick={() => window.open(report.fileUrl, '_blank')}
+                                                    />
+                                                    <div className="absolute top-2 left-2 bg-black/60 text-white text-[10px] px-2 py-0.5 rounded uppercase font-bold tracking-wider">
+                                                        📸 Photo Evidence
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
                                     <div className="mt-2 text-xs font-mono text-gray-500 flex gap-4">
                                         <span>LAT: {report.lat.toFixed(5)}</span>
                                         <span>LNG: {report.lng.toFixed(5)}</span>
