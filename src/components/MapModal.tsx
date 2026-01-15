@@ -108,12 +108,12 @@ export default function MapModal({ isOpen, onClose, onSubmit, personName }: MapM
                <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:bg-gray-100 transition-colors">
                    <label className="cursor-pointer block w-full h-full">
                        <span className="text-gray-600 text-sm font-semibold">
-                           {selectedFile ? `📸 ${selectedFile.name}` : "Atașează o poză (Click aici)"}
+                           {selectedFile ? `📸 ${selectedFile.name}` : "Atașează o poză sau videoclip (Click aici)"}
                        </span>
                        <input 
                            type="file" 
                            className="hidden" 
-                           accept="image/*" // Doar imagini
+                           accept="image/*,video/*" // Doar imagini
                            onChange={(e) => {
                                // e.target.files este o listă (FileList). Luăm primul element.
                                if (e.target.files && e.target.files.length > 0) {

@@ -209,7 +209,7 @@ export default function SightingsList({ wantedId }: { wantedId: number }) {
                                             rel="noopener noreferrer"
                                             className="text-xs bg-gray-100 hover:bg-blue-100 text-gray-600 hover:text-blue-700 px-2 py-1 rounded border border-gray-200 transition-colors"
                                             >
-                                                Vezi imaginea
+                                                Vezi imaginea/videoclipul
                                             </a>
                                     </div>
                                     <p className="text-gray-800 text-sm mt-2 font-medium">{report.details}</p>
