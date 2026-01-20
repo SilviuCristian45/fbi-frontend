@@ -48,6 +48,26 @@ export async function authFetch<T>(url: string, options: RequestInit = {}): Prom
   });
 }
 
+export async function authFetchFile<T>(url: string, options: RequestInit = {}) {
+  const finalUrl = normalizeUrl(url);
+  // 1. Pregătim Headers
+  const headers = {
+    'Accept': 'application/pdf',
+  } as Record<string, string>;
+
+  if (typeof window !== "undefined") {
+    const token = localStorage.getItem("token");
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+  }
+  return fetch(finalUrl, {
+    ...options,
+    headers,
+  });
+}
+
+
 // Funcție nouă pentru detalii
 export async function getWantedPersonById(id: string | number): Promise<ApiResponse<WantedPersonDetail>> {
   return authFetch<WantedPersonDetail>(`/FbiWanted/${id}`);
