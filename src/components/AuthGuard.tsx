@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import * as signalR from "@microsoft/signalr";
 import { Toaster, toast } from "react-hot-toast";
 import { useRouter } from "next/navigation";
 import { SignalRProvider, useSignalR } from "../context/SignalRContext";
+import { useEffect, useState, useRef } from "react";
 
 // 👇 Helper simplu să luăm tokenul (Adaptează cheia dacă o ții altfel)
 function getStoredToken() {
@@ -22,63 +22,63 @@ interface SignalRManagerProps {
 }
 
 function SignalRManager({ children, token }: SignalRManagerProps) {
-    const { connection, setConnection } = useSignalR();
+    const { setConnection } = useSignalR();
+    
+    // 🔥 1. Folosim useRef ca să ținem conexiunea "vie" între randări
+    const connectionRef = useRef<signalR.HubConnection | null>(null);
 
     useEffect(() => {
-        // Dacă nu avem token sau avem deja conexiune, nu facem nimic
-        if (!token || connection) return;
+        if (!token) return;
 
-        console.log("🔌 Inițializare SignalR Global...");
+        // 🔥 2. Creăm instanța O SINGURĂ DATĂ. 
+        // Dacă React randează componenta de 10 ori, noi folosim aceeași instanță.
+        if (!connectionRef.current) {
+            connectionRef.current = new signalR.HubConnectionBuilder()
+                .withUrl(process.env.NEXT_PUBLIC_WEBSOCKETS_URL ?? "http://localhost:7002/hubs/surveillance", {
+                    accessTokenFactory: () => token,
+                    skipNegotiation: true,
+                    transport: signalR.HttpTransportType.WebSockets
+                })
+                .withAutomaticReconnect()
+                .build();
+        }
 
-        const newConnection = new signalR.HubConnectionBuilder()
-            .withUrl(process.env.NEXT_PUBLIC_WEBSOCKETS_URL ?? "", { 
-                accessTokenFactory: () => token // Folosim token-ul din localStorage
-            })
-            .withAutomaticReconnect()
-            .build();
+        const conn = connectionRef.current;
 
-        newConnection.start()
-            .then(() => {
-                console.log("🟢 Global SignalR Connected");
-                
-                // ASCULTĂM ALERTELE GLOBALE
-                newConnection.on("ReceiveUrgentAlert", (msg) => {
-                    // Sunet de alarmă
-                    const audio = new Audio('/sounds/alarm.mp3'); 
-                    audio.play().catch(() => {});
+        const startSocket = async () => {
+            // 🔥 3. Pornim doar dacă e deconectat.
+            // Dacă e "Connecting" (din cauza Strict Mode), nu facem nimic, îl lăsăm să termine.
+            if (conn.state === signalR.HubConnectionState.Disconnected) {
+                try {
+                    await conn.start();
+                    console.log("🟢 SignalR Connected (Stable)");
 
-                    // Toast care nu dispare singur
-                    toast.error(
-                        (t) => (
-                            <div className="flex flex-col">
-                                <span className="font-bold text-lg uppercase">Alertă Critică!</span>
-                                <span>{msg}</span>
-                                <button 
-                                    onClick={() => toast.dismiss(t.id)}
-                                    className="mt-2 bg-white text-red-600 px-2 py-1 rounded text-xs font-bold"
-                                >
-                                    Confirmare
-                                </button>
-                            </div>
-                        ), 
-                        { duration: 10000, position: "top-center" }
-                    );
-                });
+                    // Re-atașăm listenerii (pentru că pot fi pierduți la re-mount)
+                    conn.off("ReceiveUrgentAlert");
+                    conn.on("ReceiveUrgentAlert", (msg) => {
+                        const audio = new Audio('/sounds/alarm.mp3');
+                        audio.play().catch(() => {});
+                        toast.error(`ALERTĂ CRITICĂ: ${msg}`, { duration: 10000 });
+                    });
 
-                setConnection(newConnection);
-            })
-            .catch(err => console.error("SignalR Connection Error:", err));
-
-        // Cleanup
-        return () => {
-            newConnection.stop();
-            setConnection(null);
+                    setConnection(conn);
+                } catch (err) {
+                    console.error("SignalR Start Error:", err);
+                }
+            } else if (conn.state === signalR.HubConnectionState.Connected) {
+                // Dacă e deja conectat (de la randarea anterioară), doar îl punem în context
+                setConnection(conn);
+            }
         };
-    }, [token]);
+
+        startSocket();
+        return () => {
+            conn.off("ReceiveUrgentAlert");
+        };
+    }, [token]); // Rulăm efectul doar când se schimbă token-ul
 
     return <>{children}</>;
 }
-
 // --- COMPONENTA PRINCIPALĂ (AUTH GUARD) ---
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
     const router = useRouter();

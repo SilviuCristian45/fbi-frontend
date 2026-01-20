@@ -29,7 +29,6 @@ export default function LoginPage() {
         // AICI ESTE CHEIA: Stocăm în LocalStorage
         localStorage.setItem("token", result.data.access_token);
         localStorage.setItem("refresh_token", result.data.refresh_token);
-        
         console.log("Login reușit! Token salvat.");
         router.push("/"); // Redirect către Home
       } else {
