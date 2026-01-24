@@ -109,3 +109,28 @@ export async function uploadFile(file: File): Promise<string> {
     throw error;
   }
 }
+
+import { ReportPagedResult } from "../types/reports"; // Importa tipurile noi
+
+// ... (restul codului tau existent) ...
+
+// Adaugă această funcție la final:
+export async function getReports(
+  pageNumber: number = 1, 
+  pageSize: number = 10,
+  search: string = ""
+): Promise<ApiResponse<ReportPagedResult>> {
+  
+  const params = new URLSearchParams({
+    PageNumber: pageNumber.toString(),
+    PageSize: pageSize.toString(),
+  });
+
+  if (search) {
+    params.append("Search", search);
+  }
+
+  // Presupunem că endpoint-ul din controller-ul C# este 'Reports' sau 'Reports/feed'
+  // Ajustează URL-ul '/Reports' dacă ai pus alt nume la Controller
+  return authFetch<ReportPagedResult>(`/FbiWanted/reports?${params.toString()}`);
+}

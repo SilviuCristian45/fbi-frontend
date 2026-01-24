@@ -92,6 +92,17 @@ export const Navbar = () => {
         >
           Stats
         </Link>) } 
+
+        { role === "ADMIN" &&
+        (<Link 
+          href="/reports" // Vom face pagina asta mai tarziu, momentan duce spre 404 sau gol
+          className={`px-6 py-2 rounded-md text-sm font-medium transition-all ${
+            pathname === "/reports" ? "bg-white text-blue-600 shadow-sm" : "text-gray-600 hover:text-gray-900"
+          }`}
+        >
+          Reports
+        </Link>) } 
+
       </div>
 
       {/* Logout */}
