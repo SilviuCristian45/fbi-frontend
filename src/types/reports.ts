@@ -11,6 +11,10 @@ export interface ReportItem {
   name: string; // Titlul raportului
   url: string;  // Poza incarcata de agent
   matches: MatchItem[]; // Lista de suspecti gasiti
+  latitude: number;
+  longitude: number;
+  description: string;
+  wantedId: number;
 }
 
 // Folosim tipul generic PagedResult definit anterior

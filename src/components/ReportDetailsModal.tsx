@@ -1,4 +1,8 @@
+import { useEffect, useState } from "react";
 import { ReportItem } from "../types/reports";
+import RouteModal from "./RouteModal";
+import { authFetch } from "../lib/api-client";
+import { Sighting } from "./SightingsList";
 
 interface Props {
   report: ReportItem | null;
@@ -15,12 +19,40 @@ export function ReportDetailsModal({ report, onClose }: Props) {
     }
   };
 
+  
+
+  const [isRouteModalOpen, setIsRouteModalOpen] = useState(false);
+  const [sightings, setSightings] = useState<Sighting[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+          const fetchHistory = async () => {
+              try {
+                  const res = await authFetch<Sighting[]>(`/FbiWanted/${report.wantedId}/sightings`);
+                  // @ts-ignore 
+                  const list = Array.isArray(res) ? res : res.data || [];
+                  setSightings(list);
+              } catch (err) {
+                  console.error("Error loading history:", err);
+              } finally {
+                  setLoading(false);
+              }
+          };
+          fetchHistory();
+      }, []);
+
   return (
     // 1. BACKDROP (Fundal întunecat)
     <div 
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
       onClick={handleBackdropClick}
     >
+         <RouteModal 
+                          isOpen={isRouteModalOpen}
+                          onClose={() => setIsRouteModalOpen(false)}
+                          locations={sightings}
+                          title={`Target #${report.wantedId}`}
+                      />
       {/* 2. MODAL CONTENT (Fereastra albă) */}
       <div className="bg-white w-full max-w-5xl h-[85vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200">
         
@@ -29,7 +61,24 @@ export function ReportDetailsModal({ report, onClose }: Props) {
           <div>
             <h2 className="text-xl font-bold text-gray-800">Analysis Report #{report.id}</h2>
             <p className="text-sm text-gray-500">{report.name}</p>
+           
           </div>
+          <div>
+            <p className="text-sm text-gray-500"> Cea mai recenta locatie raportata </p>
+             <p className="text-sm text-gray-500"> {report.latitude} </p>
+             <p className="text-sm text-gray-500"> {report.longitude} </p>
+          </div>
+
+          
+
+            <button 
+                    onClick={() => setIsRouteModalOpen(true)}
+                    disabled={sightings.length === 0}
+                    className="ml-4 flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-3 py-2 rounded shadow transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    View Route 🗺️
+                </button>
+                      
           <button 
             onClick={onClose}
             className="p-2 hover:bg-gray-200 rounded-full transition-colors text-gray-500"
@@ -54,7 +103,7 @@ export function ReportDetailsModal({ report, onClose }: Props) {
             </div>
             <div className="mt-6 w-full bg-white p-4 rounded-lg shadow-sm">
                 <p className="text-xs text-gray-400 uppercase font-bold">Details</p>
-                <p className="text-gray-800 mt-1">{report.name}</p>
+                <p className="text-gray-800 mt-1">{report.description}</p>
             </div>
           </div>
 

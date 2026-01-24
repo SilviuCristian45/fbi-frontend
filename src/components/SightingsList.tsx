@@ -7,7 +7,7 @@ import RouteModal from "./RouteModal";
 // 👇 1. Importăm hook-ul de context (folosește calea relativă ca să nu ai erori)
 import { useSignalR } from "../context/SignalRContext"; 
 
-interface Sighting {
+export interface Sighting {
     id: number;
     lat: number;
     lng: number;
