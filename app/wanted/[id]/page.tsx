@@ -69,11 +69,9 @@ export default function WantedDetailPage() {
 
   if (loading) {
     return (
-      <AuthGuard>
         <div className="flex h-screen items-center justify-center">
            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
         </div>
-      </AuthGuard>
     );
   }
 
@@ -82,7 +80,6 @@ export default function WantedDetailPage() {
   }
 
   return (
-    <AuthGuard>
       <main className="min-h-screen bg-gray-50 p-4 md:p-8">
         <div className="max-w-7xl mx-auto">
           
@@ -237,7 +234,6 @@ export default function WantedDetailPage() {
           </div>
         </div>
       </main>
-    </AuthGuard>
   );
 }
 

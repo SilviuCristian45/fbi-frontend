@@ -2,7 +2,7 @@
 
 import * as signalR from "@microsoft/signalr";
 import { Toaster, toast } from "react-hot-toast";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { SignalRProvider, useSignalR } from "../context/SignalRContext";
 import { useEffect, useState, useRef } from "react";
 
@@ -23,11 +23,13 @@ interface SignalRManagerProps {
 
 function SignalRManager({ children, token }: SignalRManagerProps) {
     const { setConnection } = useSignalR();
-    
     // 🔥 1. Folosim useRef ca să ținem conexiunea "vie" între randări
     const connectionRef = useRef<signalR.HubConnection | null>(null);
 
+
     useEffect(() => {
+        
+
         if (!token) return;
 
         // 🔥 2. Creăm instanța O SINGURĂ DATĂ. 
@@ -84,6 +86,30 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     const router = useRouter();
     const [token, setToken] = useState<string | null>(null);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+    const pathname = usePathname(); // <--- Hook nou
+    const isPublicPage = pathname.startsWith("/auth");
+
+    useEffect(() => {
+        if (isPublicPage) {
+            // Dacă suntem pe login, nu facem verificări
+            return; 
+        }
+
+        const storedToken = getStoredToken();
+        if (!storedToken) {
+            router.push("/auth/login");
+        } else {
+            setToken(storedToken);
+            setIsAuthenticated(true);
+        }
+    }, [router, pathname, isPublicPage]);
+
+    
+    if (isPublicPage) {
+        // Dacă suntem pe login, nu facem verificări
+        return <>{children}</>; 
+    }
 
     useEffect(() => {
         // 1. Verificăm dacă avem token la încărcarea paginii

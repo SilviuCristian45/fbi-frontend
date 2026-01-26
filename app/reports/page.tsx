@@ -4,12 +4,15 @@ import { useEffect, useState } from "react";
 import AuthGuard from "@/src/components/AuthGuard";
 import { Navbar } from "@/src/components/Navbar";
 import { getReports } from "@/src/lib/api-client";
-import { ReportPagedResult, ReportItem } from "@/src/types/reports";
+import { ReportPagedResult, ReportItem, ReportStatus } from "@/src/types/reports";
 import { ReportDetailsModal } from "@/src/components/ReportDetailsModal"; // <--- Import Nou
+import { useSignalR } from "@/src/context/SignalRContext";
+import toast from "react-hot-toast";
 
 export default function ReportsPage() {
   const [data, setData] = useState<ReportPagedResult | null>(null);
   const [loading, setLoading] = useState(true);
+  const { connection } = useSignalR();
   
   // STATE NOU PENTRU MODAL
   const [selectedReport, setSelectedReport] = useState<ReportItem | null>(null);
@@ -37,12 +40,80 @@ export default function ReportsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pageNumber, pageSize]);
 
+  useEffect(() => {
+    if (!connection) return;
+
+    console.log("📡 Listening for report updates...");
+
+    // Ascultăm evenimentul trimis din C# (AnalysisFinishedConsumer)
+    const handleReportProcessed = (message: any) => {
+        console.log("🔔 Report finished:", message);
+
+        console.log('-------------')
+        console.log( message.status)
+        console.log(message.status === "COMPLETED")
+        // Notificare vizuală
+        if (message.status === "COMPLETED") {
+          console.log("toast displayed")
+            toast.success(`Analysis Complete for Report #${message.reportId}`, {
+                icon: '🤖'
+            });
+        }
+
+        // REÎNCĂRCĂM DATELE AUTOMAT
+        loadData();
+    };
+
+    // Abonare la eveniment
+    connection.on("ReportProcessed", handleReportProcessed);
+
+    // Dezabonare la ieșirea din pagină (cleanup)
+    return () => {
+        connection.off("ReportProcessed", handleReportProcessed);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [connection]); // Se activează când conexiunea devine disponibilă
+  
   // ... (funcțiile getStatusColor si getStatusBadge raman la fel) ...
   const getStatusColor = (report: ReportItem) => { /* ... */ return ""; }; // Pune codul vechi
-  const getStatusBadge = (report: ReportItem) => { /* ... */ return null; }; // Pune codul vechi
+  const getStatusBadge = (report: ReportItem) => {
+    // 1. Cazul: Încă se procesează (Status = Pending) ⏳
+    if (report.status === ReportStatus.Pending) {
+      return (
+        <span className="px-2 py-1 text-xs font-medium bg-blue-50 text-blue-600 rounded-full flex items-center gap-1 border border-blue-100">
+           {/* Mic spinner CSS */}
+           <svg className="animate-spin h-3 w-3 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+           </svg>
+           Analyzing Evidence...
+        </span>
+      );
+    }
+
+    // 2. Cazul: Eșuat ❌
+    if (report.status === ReportStatus.Failed) {
+        return <span className="px-2 py-1 text-xs font-medium bg-gray-100 text-gray-500 rounded-full">Analysis Failed</span>;
+    }
+
+    // 3. Cazul: Gata (Logica veche) ✅
+    if (!report.matches || report.matches.length === 0) {
+      return <span className="px-2 py-1 text-xs font-medium bg-green-50 text-green-700 rounded-full border border-green-200">Clean (No Match)</span>;
+    }
+    
+    const maxConfidence = Math.max(...report.matches.map(m => m.confidence));
+    
+    if (maxConfidence > 80) {
+      return <span className="px-2 py-1 text-xs font-bold bg-red-100 text-red-700 rounded-full animate-pulse border border-red-200">⚠️ SUSPECT FOUND ({maxConfidence.toFixed(1)}%)</span>;
+    }
+    if (maxConfidence > 50) {
+      return <span className="px-2 py-1 text-xs font-medium bg-orange-100 text-orange-700 rounded-full border border-orange-200">Possible Match ({maxConfidence.toFixed(1)}%)</span>;
+    }
+    return <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-700 rounded-full">Low Probability</span>;
+  };
 
   return (
-    <AuthGuard>
+
       <main className="min-h-screen bg-gray-50">
         <Navbar />
         
@@ -179,6 +250,5 @@ export default function ReportsPage() {
           )}
         </div>
       </main>
-    </AuthGuard>
   );
 }

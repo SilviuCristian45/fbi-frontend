@@ -69,19 +69,16 @@ export default function StatsPage() {
   // Cazul 1: Loading
   if (loading) {
     return (
-      <AuthGuard>
         <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center">
             <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-600"></div>
             <p className="mt-4 text-gray-500 font-mono animate-pulse">Analyzing Intelligence Data...</p>
         </div>
-      </AuthGuard>
     );
   }
 
   // Cazul 2: Eroare (Aici afișăm mesajul tău simulat)
   if (error) {
     return (
-        <AuthGuard>
             <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
                 <div className="bg-white p-8 rounded-2xl shadow-xl max-w-md w-full text-center border border-red-100">
                     <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-6">
@@ -101,7 +98,6 @@ export default function StatsPage() {
                     </button>
                 </div>
             </div>
-        </AuthGuard>
     );
   }
 
@@ -112,7 +108,6 @@ export default function StatsPage() {
 
   // Cazul 4: Success (Dashboard-ul normal)
   return (
-    <AuthGuard>
       <div className="min-h-screen bg-gray-50 pb-20">
         <div className="max-w-7xl mx-auto px-4 md:px-8 pt-6">
           <Navbar />
@@ -247,6 +242,5 @@ export default function StatsPage() {
           </div>
         </div>
       </div>
-    </AuthGuard>
   );
 }

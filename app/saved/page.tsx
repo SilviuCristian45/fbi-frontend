@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import AuthGuard from "@/src/components/AuthGuard";
 import { authFetch, saveFavourite, reportLocation, uploadFile } from "@/src/lib/api-client"; // Importam reportLocation
 import { PagedResult, WantedPersonSummary } from "@/src/types/wanted-person";
 import Link from "next/link";
@@ -113,7 +112,6 @@ export default function Saved() {
   const handlePageSizeChange = (e: React.ChangeEvent<HTMLSelectElement>) => { setPageSize(parseInt(e.target.value)); setPageNumber(1); };
 
   return (
-    <AuthGuard>
       <main className="min-h-screen bg-gray-50 p-4 md:p-8">
         <div className="max-w-7xl mx-auto">
           
@@ -195,6 +193,5 @@ export default function Saved() {
         />
 
       </main>
-    </AuthGuard>
   );
 }

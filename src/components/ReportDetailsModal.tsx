@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ReportItem } from "../types/reports";
+import { ReportItem, ReportStatus } from "../types/reports";
 import RouteModal from "./RouteModal";
 import { authFetch } from "../lib/api-client";
 import { Sighting } from "./SightingsList";
@@ -109,13 +109,45 @@ export function ReportDetailsModal({ report, onClose }: Props) {
 
           {/* DREAPTA: AI RESULTS (Lista Scrollabilă) */}
           <div className="w-full md:w-7/12 bg-white flex flex-col">
-             <div className="p-4 bg-white border-b sticky top-0 z-10">
+             <div className="p-4 bg-white border-b sticky top-0 z-10 flex justify-between items-center">
                 <h3 className="text-sm font-bold text-blue-600 uppercase tracking-wide">
-                    🤖 AI Identification Results ({report.matches?.length || 0})
+                    🤖 AI Identification Results
                 </h3>
+                {/* Afișăm status în header */}
+                {report.status === ReportStatus.Pending && (
+                    <span className="text-xs text-blue-500 animate-pulse font-bold">SCANNING IN PROGRESS...</span>
+                )}
              </div>
 
              <div className="overflow-y-auto p-4 space-y-4 flex-1">
+                
+                {/* SCENARIUL 1: PENDING (Animație de scanare) */}
+                {report.status === ReportStatus.Pending && (
+                    <div className="flex flex-col items-center justify-center h-full text-center p-10 opacity-70">
+                        <div className="relative w-24 h-24 mb-4">
+                             <div className="absolute inset-0 border-4 border-blue-100 rounded-full"></div>
+                             <div className="absolute inset-0 border-4 border-blue-500 rounded-full border-t-transparent animate-spin"></div>
+                             <div className="absolute inset-0 flex items-center justify-center text-4xl">🕵️‍♂️</div>
+                        </div>
+                        <h4 className="text-lg font-bold text-gray-700">Analyzing Biometrics</h4>
+                        <p className="text-sm text-gray-500 mt-2">
+                            Comparing face vectors against FBI database...<br/>
+                            This usually takes 2-5 seconds.
+                        </p>
+                    </div>
+                )}
+
+                {/* SCENARIUL 2: COMPLETED dar 0 matches */}
+                {report.status === ReportStatus.Completed && (!report.matches || report.matches.length === 0) && (
+                    <div className="text-center py-20 text-gray-400">
+                        <div className="text-4xl mb-2">✅</div>
+                        <p>No matches found in the FBI database.</p>
+                        <p className="text-xs mt-2">Subject appears to be a civilian.</p>
+                    </div>
+                )}
+
+                {/* SCENARIUL 3: ARE MATCH-URI (Logica veche) */}
+                <div className="overflow-y-auto p-4 space-y-4 flex-1">
                 {(!report.matches || report.matches.length === 0) ? (
                     <div className="text-center py-20 text-gray-400">
                         <div className="text-4xl mb-2">✅</div>
@@ -170,7 +202,8 @@ export function ReportDetailsModal({ report, onClose }: Props) {
                     ))
                 )}
              </div>
-          </div>
+             </div>
+             </div>
 
         </div>
       </div>
