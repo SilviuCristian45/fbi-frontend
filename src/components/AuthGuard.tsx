@@ -6,16 +6,15 @@ import { usePathname, useRouter } from "next/navigation";
 import { SignalRProvider, useSignalR } from "../context/SignalRContext";
 import { useEffect, useState, useRef } from "react";
 
-// 👇 Helper simplu să luăm tokenul (Adaptează cheia dacă o ții altfel)
+// --- HELPER TOKEN ---
 function getStoredToken() {
     if (typeof window !== "undefined") {
-        // Verifică cum ai salvat tokenul la login. De obicei e "token" sau "accessToken"
         return localStorage.getItem("token") || localStorage.getItem("accessToken");
     }
     return null;
 }
 
-// --- COMPONENTA INTERNĂ (MANAGER) ---
+// --- COMPONENTA INTERNĂ (MANAGER) - Rămâne neschimbată, e OK ---
 interface SignalRManagerProps {
     children: React.ReactNode;
     token: string | null;
@@ -23,17 +22,11 @@ interface SignalRManagerProps {
 
 function SignalRManager({ children, token }: SignalRManagerProps) {
     const { setConnection } = useSignalR();
-    // 🔥 1. Folosim useRef ca să ținem conexiunea "vie" între randări
     const connectionRef = useRef<signalR.HubConnection | null>(null);
 
-
     useEffect(() => {
-        
-
         if (!token) return;
 
-        // 🔥 2. Creăm instanța O SINGURĂ DATĂ. 
-        // Dacă React randează componenta de 10 ori, noi folosim aceeași instanță.
         if (!connectionRef.current) {
             connectionRef.current = new signalR.HubConnectionBuilder()
                 .withUrl(process.env.NEXT_PUBLIC_WEBSOCKETS_URL ?? "http://localhost:7002/hubs/surveillance", {
@@ -48,14 +41,11 @@ function SignalRManager({ children, token }: SignalRManagerProps) {
         const conn = connectionRef.current;
 
         const startSocket = async () => {
-            // 🔥 3. Pornim doar dacă e deconectat.
-            // Dacă e "Connecting" (din cauza Strict Mode), nu facem nimic, îl lăsăm să termine.
             if (conn.state === signalR.HubConnectionState.Disconnected) {
                 try {
                     await conn.start();
                     console.log("🟢 SignalR Connected (Stable)");
-
-                    // Re-atașăm listenerii (pentru că pot fi pierduți la re-mount)
+                    
                     conn.off("ReceiveUrgentAlert");
                     conn.on("ReceiveUrgentAlert", (msg) => {
                         const audio = new Audio('/sounds/alarm.mp3');
@@ -68,65 +58,84 @@ function SignalRManager({ children, token }: SignalRManagerProps) {
                     console.error("SignalR Start Error:", err);
                 }
             } else if (conn.state === signalR.HubConnectionState.Connected) {
-                // Dacă e deja conectat (de la randarea anterioară), doar îl punem în context
                 setConnection(conn);
             }
         };
 
         startSocket();
+
         return () => {
             conn.off("ReceiveUrgentAlert");
+            // Optional: conn.stop() daca vrei sa inchizi cand iesi din AuthGuard,
+            // dar de obicei vrem sa ramana activa in aplicatie.
         };
-    }, [token]); // Rulăm efectul doar când se schimbă token-ul
+    }, [token]);
 
     return <>{children}</>;
 }
+
 // --- COMPONENTA PRINCIPALĂ (AUTH GUARD) ---
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
     const router = useRouter();
-    const [token, setToken] = useState<string | null>(null);
+    const pathname = usePathname();
+    
+    // 1. isLoading true la început pentru a preveni "flash of content" sau erori de hidratare
+    const [isLoading, setIsLoading] = useState(true);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [token, setToken] = useState<string | null>(null);
 
-    const pathname = usePathname(); // <--- Hook nou
-    const isPublicPage = pathname.startsWith("/auth");
+    // Definim paginile publice
+    const isPublicPage = pathname.startsWith("/auth") || pathname === "/";
 
     useEffect(() => {
-        if (isPublicPage) {
-            // Dacă suntem pe login, nu facem verificări
-            return; 
-        }
+        // 2. Verificarea se face o singură dată, la mount
+        const checkAuth = () => {
+            // Dacă e pagină publică, nu ne pasă de token, terminăm încărcarea
+            if (isPublicPage) {
+                setIsLoading(false);
+                return;
+            }
 
-        const storedToken = getStoredToken();
-        if (!storedToken) {
-            router.push("/auth/login");
-        } else {
-            setToken(storedToken);
-            setIsAuthenticated(true);
-        }
-    }, [router, pathname, isPublicPage]);
+            const storedToken = getStoredToken();
 
-    
+            if (!storedToken) {
+                // Nu e logat -> Redirect și rămânem pe loading până se schimbă pagina
+                router.push("/auth/login");
+            } else {
+                // E logat -> Setăm datele
+                setToken(storedToken);
+                setIsAuthenticated(true);
+                setIsLoading(false);
+            }
+        };
+
+        checkAuth();
+    }, [pathname, router, isPublicPage]);
+
+    // 3. LOGICA DE RANDARE (CRITICĂ PENTRU A EVITA EROAREA)
+
+    // A. Dacă suntem pe o pagină publică, randăm direct copiii (fără SignalR)
     if (isPublicPage) {
-        // Dacă suntem pe login, nu facem verificări
-        return <>{children}</>; 
+        return <>{children}</>;
     }
 
-    useEffect(() => {
-        // 1. Verificăm dacă avem token la încărcarea paginii
-        const storedToken = getStoredToken();
-        
-        if (!storedToken) {
-            // Dacă nu e logat, îl trimitem la login
-            router.push("/auth/login"); // ⚠️ Pune aici ruta ta de Login
-        } else {
-            setToken(storedToken);
-            setIsAuthenticated(true);
-        }
-    }, [router]);
+    // B. Dacă încă verificăm token-ul, afișăm un Loading Screen (sau nimic)
+    // Asta previne eroarea "Client-side exception"
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center h-screen bg-gray-100">
+                <div className="text-xl font-semibold text-gray-600">Se verifică autentificarea...</div>
+            </div>
+        );
+    }
 
-    // Dacă nu e autentificat, nu afișăm nimic (așteptăm redirectul)
-    if (!isAuthenticated) return null;
+    // C. Dacă nu e autentificat (și nu e public), teoretic useEffect a făcut deja redirect,
+    // dar returnăm null ca siguranță.
+    if (!isAuthenticated) {
+        return null;
+    }
 
+    // D. Dacă e autentificat, randăm aplicația CU SignalR
     return (
         <SignalRProvider>
             <SignalRManager token={token}>
